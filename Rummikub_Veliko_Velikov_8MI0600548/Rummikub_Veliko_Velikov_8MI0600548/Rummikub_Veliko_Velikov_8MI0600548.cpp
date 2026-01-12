@@ -122,7 +122,7 @@ int findTileInGroup(int g, Tile t) { for (int i = 0; i < groupSizes[g]; i++) if 
 
 // ---------------- MAIN ----------------
 int main() {
-    srand(1);
+    srand(time(0));
     int numPlayers; cout << "Number of players (2-4): "; cin >> numPlayers; if (numPlayers < 2) numPlayers = 2; if (numPlayers > 4) numPlayers = 4;
     Player players[4]; for (int i = 0; i < numPlayers; i++) players[i].handSize = 0;
     createDeck(); shuffleDeck(); for (int i = 0; i < 14; i++) for (int j = 0; j < numPlayers; j++) drawTile(players[j]);
@@ -131,62 +131,195 @@ int main() {
     while (running) {
         system("cls");
         cout << "PLAYER " << (currentPlayer + 1) << "'S TURN\n";
-        printBoard(); cout << "\nYour hand:\n"; printHand(players[currentPlayer]);
-        Player& p = players[currentPlayer]; bool turnDone = false;
+        printBoard();
+        cout << "\nYour hand:\n";
+        printHand(players[currentPlayer]);
 
-        while (!turnDone) {
-            cout << "\nOptions:\n1. Draw tile\n2. New group\n3. Add tiles to group\n4. Move tiles from board to new group\n5. End turn\nChoice: ";
-            int choice; cin >> choice; cin.ignore();
+        Player& p = players[currentPlayer];
+        bool turnDone = false;
 
-            if (choice == 1) { drawTile(p); cout << "Drew a tile.\n"; }
-            else if (choice == 2) {
-                cout << "Enter tiles for new group: "; string line; getline(cin, line); stringstream ss(line); string s; Tile group[13]; int k = 0;
-                while (ss >> s) { Tile t; if (!parseTile(s, t)) { cout << "Invalid: " << s << endl; k = 0; break; } int idx = findTileInHand(p, t); if (idx == -1) { cout << "Tile not in hand: " << s << endl; k = 0; break; } group[k++] = t; }
-                if (k == 0) continue;
-                if (isSet(group, k) || isRun(group, k)) {
-                    if (isRun(group, k)) sortRun(group, k);
-                    addGroup(group, k);
-                    for (int i = 0; i < k; i++) { int idx = findTileInHand(p, group[i]); removeTile(p, idx); }
-                    sortHand(p); cout << "Group placed!\n";
-                }
-                else cout << "Invalid group.\n";
-            }
-            else if (choice == 3) {
-                cout << "Enter board group number: "; int g; cin >> g; cin.ignore(); if (g<1 || g>boardSize) { cout << "Invalid group.\n"; continue; } g--;
-                cout << "Enter tiles to add from your hand: "; string line; getline(cin, line); stringstream ss(line); string s; Tile groupAdd[13]; int k = 0;
-                while (ss >> s) { Tile t; if (!parseTile(s, t)) { cout << "Invalid: " << s << endl; k = 0; break; } int idx = findTileInHand(p, t); if (idx == -1) { cout << "Tile not in hand: " << s << endl; k = 0; break; } groupAdd[k++] = t; }
-                if (k == 0) continue;
-                Tile temp[13]; int sizeNew = groupSizes[g]; for (int i = 0; i < sizeNew; i++) temp[i] = board[g][i]; for (int i = 0; i < k; i++) temp[sizeNew + i] = groupAdd[i];
-                if (isSet(temp, sizeNew + k) || isRun(temp, sizeNew + k)) {
-                    if (isRun(temp, sizeNew + k)) sortRun(temp, sizeNew + k);
-                    for (int i = 0; i < k; i++) { int idx = findTileInHand(p, groupAdd[i]); removeTile(p, idx); }
-                    for (int i = 0; i < sizeNew + k; i++) board[g][i] = temp[i];
-                    groupSizes[g] = sizeNew + k;
-                    sortHand(p); cout << "Added tiles!\n";
-                }
-                else cout << "Invalid addition.\n";
-            }
-            else if (choice == 4) {
-                cout << "Enter board group number to take tiles from: "; int g; cin >> g; cin.ignore(); if (g<1 || g>boardSize) { cout << "Invalid group.\n"; continue; } g--;
-                cout << "Enter tiles to take: "; string line; getline(cin, line); stringstream ss(line); string s; Tile taken[13]; int k = 0;
-                while (ss >> s) { Tile t; if (!parseTile(s, t)) { cout << "Invalid: " << s << endl; k = 0; break; } int idx = findTileInGroup(g, t); if (idx == -1) { cout << "Tile not in group: " << s << endl; k = 0; break; } taken[k++] = t; }
-                if (k == 0) continue;
-                for (int i = 0; i < k; i++) { int idx = findTileInGroup(g, taken[i]); removeTileFromGroup(g, idx); }
-                cout << "Optionally add tiles from your hand: "; string handLine; getline(cin, handLine); stringstream ss2(handLine); string tstr; Tile groupNew[13]; int m = 0;
-                for (int i = 0; i < k; i++) groupNew[m++] = taken[i];
-                while (ss2 >> tstr) { Tile t; if (!parseTile(tstr, t)) { cout << "Invalid: " << tstr << endl; continue; } int idx = findTileInHand(p, t); if (idx == -1) { cout << "Tile not in hand: " << tstr << endl; continue; } groupNew[m++] = t; removeTile(p, idx); }
-                if (isSet(groupNew, m) || isRun(groupNew, m)) {
-                    if (isRun(groupNew, m)) sortRun(groupNew, m);
-                    addGroup(groupNew, m); cout << "New group created!\n";
-                }
-                else { cout << "Invalid group! Returning tiles.\n"; for (int i = 0; i < k; i++) { addGroup(&taken[i], 1); } }
-            }
-            else if (choice == 5) turnDone = true;
-            else cout << "Invalid choice.\n";
+        // --------- START OF TURN MENU ---------
+        cout << "\nOptions:\n";
+        cout << "1. Draw a tile (end turn)\n";
+        cout << "2. Play\n";
+        cout << "Choice: ";
 
-            if (p.handSize == 0) { cout << "\nPLAYER " << (currentPlayer + 1) << " WINS!\n"; running = false; break; }
-            printBoard(); cout << "\nYour hand:\n"; printHand(p);
+        int startChoice;
+        cin >> startChoice;
+        cin.ignore();
+
+        // ----- OPTION 1: DRAW & END TURN -----
+        if (startChoice == 1) {
+            drawTile(p);
+            cout << "\nYou drew a tile. Turn ends.\n";
+            system("cls");
+            currentPlayer = (currentPlayer + 1) % numPlayers;
+            continue;
         }
+
+        // ----- OPTION 2: PLAY MODE -----
+        else if (startChoice == 2) {
+            while (!turnDone) {
+                system("cls");
+                cout << "PLAYER " << (currentPlayer + 1) << " - PLAY MODE\n";
+                printBoard();
+                cout << "\nYour hand:\n";
+                printHand(p);
+
+                cout << "\nPlay Options:\n";
+                cout << "1. New group\n";
+                cout << "2. Add tiles to group\n";
+                cout << "3. Move tiles from board to new group\n";
+                cout << "4. End turn\n";
+                cout << "Choice: ";
+
+                int choice;
+                cin >> choice;
+                cin.ignore();
+
+                if (choice == 1) {
+                    // --- NEW GROUP ---
+                    cout << "Enter tiles for new group: ";
+                    string line; getline(cin, line);
+                    stringstream ss(line);
+                    string s;
+                    Tile group[13];
+                    int k = 0;
+
+                    while (ss >> s) {
+                        Tile t;
+                        if (!parseTile(s, t)) { cout << "Invalid: " << s << endl; k = 0; break; }
+                        int idx = findTileInHand(p, t);
+                        if (idx == -1) { cout << "Tile not in hand: " << s << endl; k = 0; break; }
+                        group[k++] = t;
+                    }
+                    if (k == 0) continue;
+
+                    if (isSet(group, k) || isRun(group, k)) {
+                        if (isRun(group, k)) sortRun(group, k);
+                        addGroup(group, k);
+                        for (int i = 0; i < k; i++) {
+                            int idx = findTileInHand(p, group[i]);
+                            removeTile(p, idx);
+                        }
+                        sortHand(p);
+                        cout << "Group placed!\n";
+                    }
+                    else cout << "Invalid group.\n";
+                }
+
+                else if (choice == 2) {
+                    // --- ADD TILES TO GROUP ---
+                    cout << "Enter board group number: ";
+                    int g; cin >> g; cin.ignore();
+                    if (g<1 || g>boardSize) { cout << "Invalid group.\n"; continue; }
+                    g--;
+
+                    cout << "Enter tiles to add from your hand: ";
+                    string line; getline(cin, line);
+                    stringstream ss(line);
+                    string s;
+                    Tile groupAdd[13];
+                    int k = 0;
+
+                    while (ss >> s) {
+                        Tile t;
+                        if (!parseTile(s, t)) { cout << "Invalid: " << s << endl; k = 0; break; }
+                        int idx = findTileInHand(p, t);
+                        if (idx == -1) { cout << "Tile not in hand: " << s << endl; k = 0; break; }
+                        groupAdd[k++] = t;
+                    }
+                    if (k == 0) continue;
+
+                    Tile temp[13];
+                    int sizeNew = groupSizes[g];
+                    for (int i = 0; i < sizeNew; i++) temp[i] = board[g][i];
+                    for (int i = 0; i < k; i++) temp[sizeNew + i] = groupAdd[i];
+
+                    if (isSet(temp, sizeNew + k) || isRun(temp, sizeNew + k)) {
+                        if (isRun(temp, sizeNew + k)) sortRun(temp, sizeNew + k);
+                        for (int i = 0; i < k; i++) {
+                            int idx = findTileInHand(p, groupAdd[i]);
+                            removeTile(p, idx);
+                        }
+                        for (int i = 0; i < sizeNew + k; i++) board[g][i] = temp[i];
+                        groupSizes[g] = sizeNew + k;
+                        sortHand(p);
+                        cout << "Added tiles!\n";
+                    }
+                    else cout << "Invalid addition.\n";
+                }
+
+                else if (choice == 3) {
+                    // --- MOVE TILES FROM BOARD ---
+                    cout << "Enter board group number to take tiles from: ";
+                    int g; cin >> g; cin.ignore();
+                    if (g<1 || g>boardSize) { cout << "Invalid group.\n"; continue; }
+                    g--;
+
+                    cout << "Enter tiles to take: ";
+                    string line; getline(cin, line);
+                    stringstream ss(line);
+                    string s;
+                    Tile taken[13];
+                    int k = 0;
+
+                    while (ss >> s) {
+                        Tile t;
+                        if (!parseTile(s, t)) { cout << "Invalid: " << s << endl; k = 0; break; }
+                        int idx = findTileInGroup(g, t);
+                        if (idx == -1) { cout << "Tile not in group: " << s << endl; k = 0; break; }
+                        taken[k++] = t;
+                    }
+                    if (k == 0) continue;
+
+                    for (int i = 0; i < k; i++) {
+                        int idx = findTileInGroup(g, taken[i]);
+                        removeTileFromGroup(g, idx);
+                    }
+
+                    cout << "Optionally add tiles from your hand: ";
+                    string handLine; getline(cin, handLine);
+                    stringstream ss2(handLine);
+                    string tstr;
+                    Tile groupNew[13];
+                    int m = 0;
+
+                    for (int i = 0; i < k; i++) groupNew[m++] = taken[i];
+                    while (ss2 >> tstr) {
+                        Tile t;
+                        if (!parseTile(tstr, t)) { cout << "Invalid: " << tstr << endl; continue; }
+                        int idx = findTileInHand(p, t);
+                        if (idx == -1) { cout << "Tile not in hand: " << tstr << endl; continue; }
+                        groupNew[m++] = t;
+                        removeTile(p, idx);
+                    }
+
+                    if (isSet(groupNew, m) || isRun(groupNew, m)) {
+                        if (isRun(groupNew, m)) sortRun(groupNew, m);
+                        addGroup(groupNew, m);
+                        cout << "New group created!\n";
+                    }
+                    else {
+                        cout << "Invalid group! Returning tiles.\n";
+                        for (int i = 0; i < k; i++) addGroup(&taken[i], 1);
+                    }
+                }
+
+                else if (choice == 4) {
+                    turnDone = true;
+                }
+
+                else cout << "Invalid choice.\n";
+
+                if (p.handSize == 0) {
+                    cout << "\nPLAYER " << (currentPlayer + 1) << " WINS!\n";
+                    running = false;
+                    break;
+                }
+            }
+        }
+
         if (!running) break;
         currentPlayer = (currentPlayer + 1) % numPlayers;
     }

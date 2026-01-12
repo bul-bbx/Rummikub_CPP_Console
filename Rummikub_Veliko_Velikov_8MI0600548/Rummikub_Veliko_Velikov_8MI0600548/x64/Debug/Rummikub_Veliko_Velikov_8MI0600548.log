@@ -1,3 +1,3 @@
 ﻿  Rummikub_Veliko_Velikov_8MI0600548.cpp
-C:\Users\44740\Documents\GitHub\Rummikub_CPP_Console\Rummikub_Veliko_Velikov_8MI0600548\Rummikub_Veliko_Velikov_8MI0600548\Rummikub_Veliko_Velikov_8MI0600548.cpp(125,15): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+C:\Users\44740\Documents\GitHub\Rummikub_CPP_Console\Rummikub_Veliko_Velikov_8MI0600548\Rummikub_Veliko_Velikov_8MI0600548\Rummikub_Veliko_Velikov_8MI0600548.cpp(173,15): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   Rummikub_Veliko_Velikov_8MI0600548.vcxproj -> C:\Users\44740\Documents\GitHub\Rummikub_CPP_Console\Rummikub_Veliko_Velikov_8MI0600548\x64\Debug\Rummikub_Veliko_Velikov_8MI0600548.exe
